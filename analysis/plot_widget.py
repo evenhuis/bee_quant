@@ -5,7 +5,6 @@ from IPython.display import display,clear_output
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import data_handling as dh
 import functions as ff
 import bee_util as bu
 import pymc3 as pm
@@ -22,16 +21,7 @@ def show_plot():
 	from glob import glob
 	import os
 	global df,trace_o,trace_n
-	files=sorted(glob("results_analyse/cont_*.csv"))+\
-	    sorted(glob('results_analyse/caged*.csv'))+\
-	    sorted(glob('results_analyse/banked*.csv'))
-	import data_handling as dh
-	df = dh.read_data(files)
-	
-	# add integer labels for the various groupings
-	df['i_ind'],     df['ucode']   = indexTools.multilabel_encoder(df,'treat day rep string'.split())
-	df['i_treatday'],df['treatday']= indexTools.multilabel_encoder(df,'treat day'.split())
-	df['i_treat'],_                = indexTools.multilabel_encoder(df,'treat'.split())
+	df = pd.read_csv('merged_data.csv')
 
 	# read in the models
 	fit_o = models.oocyte_model(df)
