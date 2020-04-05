@@ -89,7 +89,7 @@ def show_plot():
 	#	description='Number:',
 	#	disabled=False,
 	#)
-	choice=widgets.IntSlider(
+	choice=widgets.IntText(
 		value=0,
 		min=0,
 		max=len(df['i_ind'].unique()),
@@ -97,7 +97,6 @@ def show_plot():
 		description='Test:',
 		disabled=False,
 		continuous_update=False,
-		orientation='horizontal',
 		readout=True,
 		readout_format='d'
 	)
@@ -141,17 +140,18 @@ def show_plot():
 		else:
 			iexp = choice.value
 			mask = df['i_ind']==iexp	
-			o_obs = df.loc[mask,'Oc_size'] ; o_x = df.loc[mask,'pos'] 
-			n_obs = df.loc[mask,'Ns_size'] ; n_x = o_x
+			if( sum(mask)>0 ):	
+			   o_obs = df.loc[mask,'Oc_size'] ; o_x = df.loc[mask,'pos'] 
+			   n_obs = df.loc[mask,'Ns_size'] ; n_x = o_x
 
-			vars_o = 'Vmax_o,t_o,a_o,Vmin_o'.split(',')
-			vars_n = 'Vmax_n t0 a0 t1 a1 Vmin_n'.split()
-			theta_o = np.median(bu.pull_post(trace_o,vars_o,iexp),axis=0)
-			theta_n = np.median(bu.pull_post(trace_n,vars_n,iexp),axis=0)
-			for slide,val in zip( [Vmax_o_slide,to_slide,ao_slide,Vmin_o_slide],theta_o):
-				slide.value=val
-			for slide,val in zip( [Vmax_n_slide,t0_slide,a0_slide,t1_slide,a1_slide,Vmin_n_slide],theta_n):
-				slide.value=val			   
+			   vars_o = 'Vmax_o,t_o,a_o,Vmin_o'.split(',')
+			   vars_n = 'Vmax_n t0 a0 t1 a1 Vmin_n'.split()
+			   theta_o = np.median(bu.pull_post(trace_o,vars_o,iexp),axis=0)
+			   theta_n = np.median(bu.pull_post(trace_n,vars_n,iexp),axis=0)
+			   for slide,val in zip( [Vmax_o_slide,to_slide,ao_slide,Vmin_o_slide],theta_o):
+				   slide.value=val
+			   for slide,val in zip( [Vmax_n_slide,t0_slide,a0_slide,t1_slide,a1_slide,Vmin_n_slide],theta_n):
+				   slide.value=val			   
 		
 		#rown = "{}_1".format(name)
 		#Vmax_n_slide.value= res_df.loc[rown,('Vmax_n','m')]
