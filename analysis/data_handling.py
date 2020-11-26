@@ -52,7 +52,7 @@ def read_data( files ):
 	df['rep']=df['rep'].astype(int)
 
 	# correct the size on some of the images
-	if( True):
+	if( False ):
 		for treat,day,rep in zip( 'caged caged caged'.split(),[4,10,10],[3,2,4]):
 			mask=(df['treat']==treat)&(df['day']==day)&(df['rep']==rep)
 			df.loc[mask,'Oc_size']=df.loc[mask,'Oc_size']/2.

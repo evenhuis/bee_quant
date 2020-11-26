@@ -151,18 +151,27 @@ def sigmoid_curve( x, th, a, nu):
 	 Q=-1+(1/0.5)**nu
 	#return					  1/(1+Q*np.exp(alpha*(np.log(t+1e-18)-np.log(t0  ))))**(1./nu)
 	 #return 1./(1+Q*np.exp((x-th)*td ))**(1./nu)
-	 return 1./(1.+Q*np.exp((x-th)*a*2) )**(1./nu)
+	 return 1./(1.+Q*np.exp((x-th)*a  ) )**(1./nu)		# the x2 looks like a mistake
 
 def rise_only(x,Vmax_o,t_o,a_o,nu_o,Vmin_o):
 	 return (Vmax_o-Vmin_o)*sigmoid_curve(x,t_o,a_o,nu_o)+Vmin_o
 
+def rise_only_r( x, Vmax_o,t_o,r_o,nu_o,Vmin_o):
+   	return (Vmax_o-Vmin_o)*sigmoid_curve(x,t_o,2.*np.log(3)/r_o,nu_o)+Vmin_o
+
+
 def rise_and_fall		( x,Vmax, t0,a0,nu0, t1,a1,nu1, Vmin):
 	 return	 rise_only( x,Vmax, t0,a0,nu0,Vmin)*(1.-sigmoid_curve(x,t1,a1,nu1))
+
+def rise_and_fall_r     ( x,Vmax, t0,r0,nu0, t1,r1,nu1, Vmin):
+     return  rise_only( x,Vmax, t0,2.*np.log(3)/r0,nu0,Vmin)*(1.-sigmoid_curve(x,t1,2.*np.log(3)/r1,nu1))
+
 def rise_and_fall_vol_trans( x,Vmax, t0,a0,nu0, t1,a1,nu1, Vmin):
 	 tol = t1+1.*a
 	 p=3
 	 return (rise_and_fall( np.where(x<tol,tol,x),Vmax, t0,a0,nu0, t1,a1,nu1, Vmin)**p
 				-rise_and_fall( x,Vmax, t0,a0,nu0, t1,a1,nu1, Vmin)**p)
+
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 def perc_plot( ax, x, samp,mask=None, **kwargs  ):
@@ -174,23 +183,59 @@ def perc_plot( ax, x, samp,mask=None, **kwargs  ):
 	ax.plot( x[mask], percs[2,mask], lw=1.5, **kwargs )
 	return
 
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+def posterior_draws( trace, ind,code, X, samp_err=False,nsamp=1000 ):
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	'''draw samples from the posterior and apply the model for oocyte or nurse 
+	cells. 
+	input
+	   trace  :  MCMC chain from PyMC3
+	   code   :  'o'/'n'  o for oocyte, n for nurse
+	   X      :  array of positions
+	   nsamp  :  numper of draws
+
+	output
+       draws  : nparray [nsamp,len(X)]		
+
+	'''
+	if( code=='o'): 
+		cols = 'Vmax_o,t_o,a_o,nu_o,Vmin_o,sdo_o'.split(',')  
+		func = rise_only
+	if( code=='n'): 
+		cols = 'Vmax_n t0 a0 nu0 t1 a1 nu1 Vmin_n sdo_n'.split()
+		func = rise_and_fall
+	pulls = pull_post(trace,cols,ind,nsamp=nsamp)
+	samps = np.zeros([nsamp,len(X)])
+	for i in range(nsamp):
+		samps[i] = func(X, *pulls[i,:-1] )
+	if( samp_err ):
+		for i in range(nsamp):
+			samps[i]+= np.random.rand(len(X))*pulls[i,-1]
+		
+		
+	return samps	
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-def posterior_comp( ax, df, trace, ind, code='o', ptype='spag', color='red', nsamp=None):
+def posterior_comp( ax, df, trace, ind, code='o', ptype='spag', color='red', nsamp=None, index='i_ind', **kwargs):
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	''''''
 	if( code=='o'): cols = 'Vmax_o,t_o,a_o,nu_o,Vmin_o'.split(',')	
 	if( code=='n'): cols = 'Vmax_n t0 a0 nu0 t1 a1 nu1 Vmin_n'.split()
 
+
 	if( (ptype=='spag') & (nsamp is None) ) : nsamp=50
 	if( (ptype=='perc') & (nsamp is None) ) : nsamp=400
+	if( (ptype=='median') & (nsamp is None) ) : nsamp=100
 	
 	#cols = 'Vmax_n t0 a0 nu0 t1 a1 nu1 Vmin_n'.split() Nurse
 	# get the experimental unit
 	pulls = pull_post(trace,cols,ind, nsamp=nsamp)
 
-	nmax = max(df.loc[df['i_ind']==ind,'pos'])+2
+	nmax = max(df.loc[df[index]==ind,'pos'])+2
+	
 	xp = np.linspace(-2,nmax,(nmax+4)*4+1)	# xaxis for plotting
+	if(ptype=='median'): 
+	   xp = np.linspace(0,nmax,(nmax+4)*4)
 
 	samps = np.zeros([nsamp,len(xp)])
 
@@ -204,5 +249,53 @@ def posterior_comp( ax, df, trace, ind, code='o', ptype='spag', color='red', nsa
 		for i in range(nsamp):
 			ax.plot( -xp, samps[i],color=color,lw=1,alpha=0.25)
 	if( ptype=='perc'): perc_plot(ax,-xp,samps,color=color)
+	if( ptype=='median'): 
+		theta = np.median(pulls,axis=0)
+		if( code=='o'):
+			ax.plot(-xp,rise_only(xp,*theta),color=color,**kwargs)
+		if( code=='n'):
+			ax.plot(-xp,rise_and_fall(xp,*theta),color=color,**kwargs)
+
+		
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+def posterior_comp_r( ax, df, trace, ind, code='o', ptype='spag', color='red', nsamp=None, index='i_ind', **kwargs):
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	''''''
+	if( code=='o'): cols = 'Vmax_o t_o r_o nu_o Vmin_o'.split()	
+	if( code=='n'): cols = 'Vmax_n t_n r_n nu_n t_d r_d nu_d Vmin_n'.split()
+
+
+	if( (ptype=='spag') & (nsamp is None) ) : nsamp=50
+	if( (ptype=='perc') & (nsamp is None) ) : nsamp=400
+	if( (ptype=='median') & (nsamp is None) ) : nsamp=100
+	
+	#cols = 'Vmax_n t0 a0 nu0 t1 a1 nu1 Vmin_n'.split() Nurse
+	# get the experimental unit
+	pulls = pull_post(trace,cols,ind, nsamp=nsamp)
+
+	nmax = max(df.loc[df[index]==ind,'pos'])+2
+	
+	xp = np.linspace(-2,nmax,(nmax+4)*4+1)	# xaxis for plotting
+	if(ptype=='median'): 
+	   xp = np.linspace(-2,nmax,(nmax+4)*4+1)
+
+	samps = np.zeros([nsamp,len(xp)])
+
+	if(code=='o'):
+		for i in range(nsamp):
+			samps[i] = rise_only_r(xp, *pulls[i] )
+	if(code=='n'):
+		for i in range(nsamp):
+			samps[i] = rise_and_fall_r(xp, *pulls[i] )		
+	if( ptype=='spag'): 
+		for i in range(nsamp):
+			ax.plot( -xp, samps[i],color=color,lw=1,alpha=0.25)
+	if( ptype=='perc'): perc_plot(ax,-xp,samps,color=color)
+	if( ptype=='median'): 
+		theta = np.median(pulls,axis=0)
+		if( code=='o'):
+			ax.plot(-xp,rise_only_r(xp,*theta),color=color,**kwargs)
+		if( code=='n'):
+			ax.plot(-xp,rise_and_fall_r(xp,*theta),color=color,**kwargs)
 
 		

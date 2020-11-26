@@ -10,7 +10,7 @@ import bee_util as bu
 import pymc3 as pm
 import models
 import indexTools
-global o_obs,o_x, df, trace_o, trace_n
+global o_obs,o_x, df, trace_o, trace_n, title
 
 def show_plot():
 	plt.close('all')
@@ -20,7 +20,7 @@ def show_plot():
 	# load in the trace
 	from glob import glob
 	import os
-	global df,trace_o,trace_n
+	global df,trace_o,trace_n, title
 	df = pd.read_csv('merged_data.csv')
 
 	# read in the models
@@ -37,7 +37,13 @@ def show_plot():
 
 	#res_df = pd.read_pickle("res.pkl")
 	def click(b):
-		global o_obs,o_x, n_obs,n_x
+		global o_obs,o_x, n_obs,n_x, df
+
+		mask = df['i_ind']==choice.value
+		if( sum(mask)>0 ):
+			title_comp = df.loc[mask,'ucode'].values[0].split('_')
+			fig.suptitle("{}".format(title_comp[0]))
+			ax.set_title("day {}.rep {}, str {}".format(*title_comp[1:]))
 
 		Vmax_o = Vmax_o_slide.value
 		ao   = ao_slide.value
@@ -141,17 +147,17 @@ def show_plot():
 			iexp = choice.value
 			mask = df['i_ind']==iexp	
 			if( sum(mask)>0 ):	
-			   o_obs = df.loc[mask,'Oc_size'] ; o_x = df.loc[mask,'pos'] 
-			   n_obs = df.loc[mask,'Ns_size'] ; n_x = o_x
+				o_obs = df.loc[mask,'Oc_size'] ; o_x = df.loc[mask,'pos'] 
+				n_obs = df.loc[mask,'Ns_size'] ; n_x = o_x
 
-			   vars_o = 'Vmax_o,t_o,a_o,Vmin_o'.split(',')
-			   vars_n = 'Vmax_n t0 a0 t1 a1 Vmin_n'.split()
-			   theta_o = np.median(bu.pull_post(trace_o,vars_o,iexp),axis=0)
-			   theta_n = np.median(bu.pull_post(trace_n,vars_n,iexp),axis=0)
-			   for slide,val in zip( [Vmax_o_slide,to_slide,ao_slide,Vmin_o_slide],theta_o):
-				   slide.value=val
-			   for slide,val in zip( [Vmax_n_slide,t0_slide,a0_slide,t1_slide,a1_slide,Vmin_n_slide],theta_n):
-				   slide.value=val			   
+				vars_o = 'Vmax_o,t_o,a_o,Vmin_o'.split(',')
+				vars_n = 'Vmax_n t0 a0 t1 a1 Vmin_n'.split()
+				theta_o = np.median(bu.pull_post(trace_o,vars_o,iexp),axis=0)
+				theta_n = np.median(bu.pull_post(trace_n,vars_n,iexp),axis=0)
+				for slide,val in zip( [Vmax_o_slide,to_slide,ao_slide,Vmin_o_slide],theta_o):
+					slide.value=val
+				for slide,val in zip( [Vmax_n_slide,t0_slide,a0_slide,t1_slide,a1_slide,Vmin_n_slide],theta_n):
+					slide.value=val			   
 		
 		#rown = "{}_1".format(name)
 		#Vmax_n_slide.value= res_df.loc[rown,('Vmax_n','m')]
