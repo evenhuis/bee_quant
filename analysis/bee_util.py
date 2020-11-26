@@ -199,7 +199,7 @@ def posterior_draws( trace, ind,code, X, samp_err=False,nsamp=1000 ):
 
 	'''
 	if( code=='o'): 
-		cols = 'Vmax_o,t_o,a_o,nu_o,Vmin_o,sdo_o'.split(',')  
+		cols = 'Vmax_o,t_o,a_o,nu_o,Vmin_o'.split(',')
 		func = rise_only
 	if( code=='n'): 
 		cols = 'Vmax_n t0 a0 nu0 t1 a1 nu1 Vmin_n sdo_n'.split()
@@ -212,6 +212,37 @@ def posterior_draws( trace, ind,code, X, samp_err=False,nsamp=1000 ):
 		for i in range(nsamp):
 			samps[i]+= np.random.rand(len(X))*pulls[i,-1]
 		
+		
+	return samps	
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+def posterior_draws_r( trace, ind,code, X, samp_err=False,nsamp=1000 ):
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	'''draw samples from the posterior and apply the model for oocyte or nurse 
+	cells. 
+	input
+	   trace  :  MCMC chain from PyMC3
+	   code   :  'o'/'n'  o for oocyte, n for nurse
+	   X      :  array of positions
+	   nsamp  :  numper of draws
+
+	output
+       draws  : nparray [nsamp,len(X)]		
+
+	'''
+	if( code=='o'): 
+		cols = 'Vmax_o t_o r_o nu_o Vmin_o sdo_o'.split()
+		func = rise_only_r
+	if( code=='n'): 
+		cols = 'Vmax_n t_n r_n nu_n t_d r_d nu_d Vmin_n sdo_n'.split()
+		func = rise_and_fall_r
+	pulls = pull_post(trace,cols,ind,nsamp=nsamp)
+	samps = np.zeros([nsamp,len(X)])
+	for i in range(nsamp):
+		samps[i] = func(X, *pulls[i,:-1] )
+	if( samp_err ):
+		for i in range(nsamp):
+			samps[i]+= np.random.rand(len(X))*pulls[i,-1]
 		
 	return samps	
 
@@ -277,7 +308,7 @@ def posterior_comp_r( ax, df, trace, ind, code='o', ptype='spag', color='red', n
 	
 	xp = np.linspace(-2,nmax,(nmax+4)*4+1)	# xaxis for plotting
 	if(ptype=='median'): 
-	   xp = np.linspace(-2,nmax,(nmax+4)*4+1)
+	   xp = np.linspace(0,nmax,(nmax+4)*4+1)
 
 	samps = np.zeros([nsamp,len(xp)])
 
